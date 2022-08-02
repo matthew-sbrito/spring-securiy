@@ -1,0 +1,23 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+jwt:
+  secret: d4d984asd98a4s9dd4d984asd98a4s9d
+
+management:
+  server:
+    port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/auth?useTimezone=true&serverTimezone=UTC&useLegacyDate
+    username: postgres
+    password: postgres
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate.format_sql: true
