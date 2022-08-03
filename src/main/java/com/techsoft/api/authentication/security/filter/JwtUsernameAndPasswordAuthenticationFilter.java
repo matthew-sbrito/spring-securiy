@@ -88,7 +88,7 @@ public class JwtUsernameAndPasswordAuthenticationFilter extends UsernamePassword
 
         log.info("Token generated successfully, adding it to response");
 
-        response.addHeader("Access-Control-Expose-Headers", "XSRF-TOKEN, "+jwtConfiguration.getHeader().getName());
+        response.addHeader("Access-Control-Expose-Headers", "XSRF-TOKEN, " + jwtConfiguration.getHeader().getName());
         response.addHeader(jwtConfiguration.getHeader().getName(), jwtConfiguration.getHeader().getPrefix() + " " + encryptedToken);
         response.addHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write(authResponse.toJson());

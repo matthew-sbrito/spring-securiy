@@ -1,7 +1,7 @@
 package com.techsoft.api.controller;
 
 import com.techsoft.api.authentication.domain.ApplicationUser;
-import com.techsoft.api.authentication.service.AuthService;
+import com.techsoft.api.authentication.security.helper.ApplicationSecurityContextHolder;
 import com.techsoft.api.form.ProductForm;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,19 +23,17 @@ import com.techsoft.api.service.ProductService;
 public class ProductController {
 
     private final ProductService productService;
-    private final AuthService authService;
 
     @Autowired
-    public ProductController(ProductService productService, AuthService authService) {
+    public ProductController(ProductService productService) {
         this.productService = productService;
-        this.authService = authService;
     }
 
     @GetMapping
     public ResponseEntity<Page<Product>> findAll(@PageableDefault Pageable pageable) {
         log.info("Request get all products!");
 
-        ApplicationUser loggedUser = authService.getLoggedUser();
+        ApplicationUser loggedUser = ApplicationSecurityContextHolder.getLoggedUser();
 
         log.info("Request made by {} with id {}", loggedUser.getUsername(), loggedUser.getId());
 

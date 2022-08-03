@@ -5,28 +5,37 @@ import com.techsoft.api.authentication.security.token.TokenBuilder;
 import com.techsoft.api.authentication.security.token.TokenParser;
 import com.techsoft.api.common.properties.JwtConfiguration;
 import com.techsoft.api.authentication.security.filter.JwtUsernameAndPasswordAuthenticationFilter;
-import lombok.SneakyThrows;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 
 import javax.servlet.http.HttpServletResponse;
 
+import lombok.SneakyThrows;
+
+/**
+ * Configuring Http Request for authentication login with JWT!
+ * Also configure beans of security for application
+ * @author Matheus Brito
+ * @since 02/08/2022
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityCredentialsConfig {
+    private final AuthenticationConfiguration configuration;
     private final UserDetailsService userDetailsService;
     private final JwtConfiguration jwtConfiguration;
     private final TokenBuilder tokenBuilder;
@@ -34,8 +43,13 @@ public class SecurityCredentialsConfig {
 
     @Autowired
     public SecurityCredentialsConfig(
-            UserDetailsService userDetailsService, JwtConfiguration jwtConfiguration, TokenBuilder tokenBuilder, TokenParser tokenParser
+            AuthenticationConfiguration configuration,
+            UserDetailsService userDetailsService,
+            JwtConfiguration jwtConfiguration,
+            TokenBuilder tokenBuilder,
+            TokenParser tokenParser
     ) {
+        this.configuration = configuration;
         this.userDetailsService = userDetailsService;
         this.jwtConfiguration = jwtConfiguration;
         this.tokenBuilder = tokenBuilder;
@@ -43,31 +57,41 @@ public class SecurityCredentialsConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    @SneakyThrows
+    public AuthenticationManager authenticationManager() {
         return configuration.getAuthenticationManager();
     }
 
     @Bean
-    public BCryptPasswordEncoder passwordEncoder() {
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    @SneakyThrows
-    public AuthenticationManager buildAuthenticationManager(HttpSecurity httpSecurity) {
-        AuthenticationManagerBuilder authenticationManagerBuilder = httpSecurity.getSharedObject(AuthenticationManagerBuilder.class);
-        authenticationManagerBuilder
-                .userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder());
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return userDetailsService;
+    }
 
-        return authenticationManagerBuilder.build();
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+
+        authenticationProvider.setUserDetailsService(userDetailsService);
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+
+        return authenticationProvider;
     }
 
     @Bean
     @SneakyThrows
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) {
-        AuthenticationManager authenticationManager = buildAuthenticationManager(httpSecurity);
-        JwtUsernameAndPasswordAuthenticationFilter filterGenerateJWT = new JwtUsernameAndPasswordAuthenticationFilter(authenticationManager, jwtConfiguration, tokenBuilder);
-        JwtTokenAuthorizationFilter filterParserJWT = new JwtTokenAuthorizationFilter(jwtConfiguration, tokenParser);
+        JwtUsernameAndPasswordAuthenticationFilter filterGenerateJWT = new JwtUsernameAndPasswordAuthenticationFilter(
+                authenticationManager(), jwtConfiguration, tokenBuilder
+        );
+
+        JwtTokenAuthorizationFilter filterParserJWT = new JwtTokenAuthorizationFilter(
+                jwtConfiguration, tokenParser
+        );
 
         httpSecurity
                 .csrf().disable()
@@ -78,7 +102,8 @@ public class SecurityCredentialsConfig {
                 .authenticationEntryPoint((request, response, authenticationException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                 .and().addFilter(filterGenerateJWT)
                 .addFilterAfter(filterParserJWT, UsernamePasswordAuthenticationFilter.class)
-                .authenticationManager(authenticationManager)
+                .authenticationProvider(authenticationProvider())
+                .authenticationManager(authenticationManager())
                 .authorizeRequests()
                 .antMatchers(jwtConfiguration.getLoginURL()).permitAll()
                 .anyRequest().authenticated();
